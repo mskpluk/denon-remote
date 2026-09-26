@@ -1,0 +1,14 @@
+# CMake build trees
+/build/
+/obj-*/
+
+# Built packages
+/dist/
+
+# debhelper leftovers
+/debian/.debhelper/
+/debian/debhelper-build-stamp
+/debian/denon-remote/
+/debian/*.debhelper.log
+/debian/*.substvars
+/debian/files

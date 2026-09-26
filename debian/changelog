@@ -1,0 +1,25 @@
+denon-remote (0.2.0-1) unstable; urgency=medium
+
+  * Change the volume with the mouse wheel over the tray icon, half a decibel
+    per notch. The tray icon now uses KStatusNotifierItem, because Qt's own
+    implementation drops scroll events.
+  * Show volume and mute in the tray tooltip and keep it current.
+  * Stop querying the receiver every 30 seconds; a dead link is detected with
+    TCP keepalive instead, so nothing reaches the receiver unasked.
+  * License the program under GPL-2.0-or-later.
+
+ -- mskpluk <mskpluk@users.noreply.github.com>  Sat, 26 Sep 2026 09:40:49 +0100
+
+denon-remote (0.1.0) unstable; urgency=medium
+
+  * Initial release: Qt 6 remote control for Denon and Marantz network
+    receivers, replacing an earlier single-window GTK script.
+  * Hold one telnet connection and treat it as the event source, so the
+    window follows the front panel, the infrared remote and the HEOS app.
+  * Read the input list from the receiver itself, including the labels
+    configured on it and the inputs hidden in its setup.
+  * Add zone 2, surround modes, Quick Select, tone controls, dynamic range,
+    Restorer, ECO, sleep timer and setup-menu cursor control.
+  * Add network discovery, a tray icon and persistent settings.
+
+ -- mskpluk <mskpluk@users.noreply.github.com>  Sun, 26 Jul 2026 23:30:00 +0200

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Denon Remote
+GenericName=AV Receiver Remote
+Comment=Control a Denon or Marantz network receiver over the local network
+Exec=denon-remote
+Icon=denon-remote
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=denon;marantz;avr;receiver;amplifier;volume;heos;
+StartupNotify=true
+StartupWMClass=denon-remote

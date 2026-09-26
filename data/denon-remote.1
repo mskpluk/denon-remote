@@ -1,0 +1,55 @@
+.TH DENON\-REMOTE 1 "September 2026" "denon-remote 0.2.0" "User Commands"
+.SH NAME
+denon\-remote \- desktop remote control for Denon and Marantz receivers
+.SH SYNOPSIS
+.B denon\-remote
+.SH DESCRIPTION
+.B denon\-remote
+controls a Denon or Marantz network receiver over the local network.
+.PP
+It holds a single connection to the receiver on TCP port 23. That connection
+carries both the commands the application sends and the notifications the
+receiver emits on its own, so the window stays in step with changes made from
+the front panel, the infrared remote or the HEOS app.
+.PP
+The list of inputs is read from the receiver rather than assumed: the labels
+shown are the ones configured on the receiver, and inputs hidden in its setup
+are left out.
+.SH USAGE
+On first start the application scans the local network and offers the
+receivers it finds; an address can also be typed in directly. The chosen
+receiver is remembered, and the connection is re-established automatically
+if it drops.
+.PP
+The window is divided into four tabs:
+.TP
+.B Main zone
+Input, volume in decibels, mute and power.
+.TP
+.B Zone 2
+The same controls for the second zone, plus the option to follow the main zone.
+.TP
+.B Sound
+Surround modes, Quick Select presets, bass, treble and subwoofer trim, dynamic
+range compression, Restorer, ECO mode and the sleep timer.
+.TP
+.B Menu
+Cursor keys for the receiver's on-screen setup menu.
+.PP
+When a system tray is available, the application offers power, standby and
+mute from its tray icon, and the mouse wheel over the icon changes the volume
+by half a decibel per notch. The application can be told to close to the tray
+instead of quitting.
+.SH FILES
+.TP
+.I ~/.config/denon-remote/denon-remote.conf
+Stores the receiver address, the window geometry and the tray preference.
+.SH NOTES
+Bass and treble are ignored by the receiver unless tone control is enabled,
+which is why those sliders are disabled until it is.
+.PP
+The receiver accepts only one control connection at a time on some firmware
+versions. If the application cannot connect, check that no other controller
+is holding the port.
+.SH AUTHOR
+mskpluk <mskpluk@users.noreply.github.com>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.mskpluk.DenonRemote</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <developer id="io.github.mskpluk">
+    <name>mskpluk</name>
+  </developer>
+  <name>Denon Remote</name>
+  <summary>Control a Denon or Marantz network receiver</summary>
+  <description>
+    <p>
+      A desktop remote control for Denon and Marantz network receivers. It holds a
+      single connection to the receiver, which carries both the commands it sends and
+      the notifications the receiver emits on its own, so the window stays in step with
+      changes made from the front panel, the infrared remote or the HEOS app.
+    </p>
+    <p>Covers:</p>
+    <ul>
+      <li>Power, volume in decibels, mute and input selection for the main zone and zone 2</li>
+      <li>Surround modes and Quick Select presets</li>
+      <li>Bass, treble and subwoofer trim, dynamic range, Restorer, ECO and the sleep timer</li>
+      <li>Cursor control for the on-screen setup menu</li>
+      <li>Receiver discovery on the local network, and a tray icon for power, mute and volume</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">denon-remote.desktop</launchable>
+  <url type="homepage">https://github.com/mskpluk/denon-remote</url>
+  <url type="bugtracker">https://github.com/mskpluk/denon-remote/issues</url>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+  </categories>
+  <provides>
+    <binary>denon-remote</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.2.0" date="2026-09-26"/>
+    <release version="0.1.0" date="2026-07-26"/>
+  </releases>
+</component>
