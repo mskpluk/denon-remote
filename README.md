@@ -3,7 +3,7 @@
 A Qt 6 desktop remote control for Denon and Marantz network receivers.
 Developed against an AVR-X1400H.
 
-## What it does differently
+## How it works
 
 The receiver announces every change on its own control port. This application
 keeps one connection open and treats it as the event source, so turning the
@@ -11,16 +11,10 @@ front panel knob, pressing the infrared remote or changing the volume from the
 HEOS app all move the slider in the window. Nothing is polled, and no value in
 the interface is ever a guess about what the receiver did with a command.
 
-The input list is read from the receiver too. `SSFUN` reports the label
-configured for each input and `SSSOD` reports which inputs are still enabled,
-so the drop-down shows exactly the inputs that receiver has, under the names
-its owner gave them. Receivers too old to answer those two publish the same
-list on their web page, and the application reads it from there instead —
-once per connection, and only when `SSFUN` has stayed unanswered for a few
-seconds, so a receiver that does answer never sees an HTTP request. Both page
-layouts in use between about 2010 and 2015 are understood; the later one names
-inputs as the front panel does ("Blu-ray", "CBL/SAT"), and those names are
-translated back to the ones the receiver accepts as a command.
+The input list is read from the receiver too, under the names its owner gave
+the inputs and without the ones hidden in its setup. Older receivers that
+don't report it over the control connection are asked for their web page
+instead.
 
 ## Features
 
