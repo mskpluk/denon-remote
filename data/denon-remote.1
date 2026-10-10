@@ -14,7 +14,8 @@ the front panel, the infrared remote or the HEOS app.
 .PP
 The list of inputs is read from the receiver rather than assumed: the labels
 shown are the ones configured on the receiver, and inputs hidden in its setup
-are left out.
+are left out. Receivers too old to report the list over that connection are
+asked once for their web page on port 80 instead.
 .SH USAGE
 On first start the application scans the local network and offers the
 receivers it finds; an address can also be typed in directly. The chosen
@@ -26,11 +27,13 @@ The window is divided into four tabs:
 .B Main zone
 Input, volume in decibels, mute and power.
 .TP
-.B Zone 2
-The same controls for the second zone, plus the option to follow the main zone.
+.B Zone 2, Zone 3
+The same controls for the other zones, plus the option to follow the main zone.
+The zone 3 tab is shown only when the receiver has a third zone.
 .TP
 .B Sound
-Surround modes, Quick Select presets, bass, treble and subwoofer trim, dynamic
+Surround modes, Quick Select presets under the names set on the receiver
+(a fifth on models that have one), bass, treble and subwoofer trim, dynamic
 range compression, Restorer, ECO mode and the sleep timer.
 .TP
 .B Menu

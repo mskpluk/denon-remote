@@ -14,16 +14,26 @@ the interface is ever a guess about what the receiver did with a command.
 The input list is read from the receiver too. `SSFUN` reports the label
 configured for each input and `SSSOD` reports which inputs are still enabled,
 so the drop-down shows exactly the inputs that receiver has, under the names
-its owner gave them.
+its owner gave them. Receivers too old to answer those two publish the same
+list on their web page, and the application reads it from there instead —
+once per connection, and only when `SSFUN` has stayed unanswered for a few
+seconds, so a receiver that does answer never sees an HTTP request. Both page
+layouts in use between about 2010 and 2015 are understood; the later one names
+inputs as the front panel does ("Blu-ray", "CBL/SAT"), and those names are
+translated back to the ones the receiver accepts as a command.
 
 ## Features
 
-- Main zone and zone 2: power, volume in decibels, mute, input selection
-- Surround modes and the four Quick Select presets
+- Main zone, zone 2 and zone 3: power, volume in decibels, mute, input
+  selection; the zone 3 tab appears only on models that report one
+- Surround modes and the Quick Select presets, under the names set on the
+  receiver; a fifth button appears on models that report a fifth slot
 - Bass, treble and subwoofer trim, dynamic range compression, Restorer,
-  ECO mode, sleep timer
+  ECO mode, sleep timer; dynamic range, Restorer and ECO show up once the
+  receiver reports them
 - Cursor control for the on-screen setup menu
-- Receiver discovery on the local network, with manual entry as a fallback
+- Receiver discovery on the local network, older models included, with
+  manual entry as a fallback
 - Tray icon for power, standby and mute; the mouse wheel over it changes the
   volume, half a decibel per notch as on the front panel knob; optional
   close-to-tray
@@ -40,8 +50,12 @@ sudo apt install build-essential cmake qt6-base-dev qt6-svg-plugins \
     libkf6statusnotifieritem-dev
 cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build -j$(nproc)
+ctest --test-dir build
 ./build/denon-remote
 ```
+
+The tests run against pages captured from real receivers (see
+`tests/data/NOTICE`) and against stand-in receivers on the loopback interface.
 
 ## Debian package
 
@@ -74,9 +88,16 @@ The parts this application relies on:
 | `MSQUICK1`     | Recall Quick Select preset                         |
 | `PSBAS 50`     | Bass, centred on 50                                |
 | `PSTONE CTRL ON`     | Tone control, without which bass and treble are ignored |
-| `Z2ON`, `Z240`, `Z2MUON`, `Z2SOURCE` | Zone 2 power, volume, mute, input |
+| `Z2ON`, `Z240`, `Z2MUON`, `Z2SOURCE` | Zone 2 power, volume, mute, input; `Z3…` likewise for zone 3 |
 | `SSFUN ?`      | Input labels configured on the receiver             |
 | `SSSOD ?`      | Which inputs are enabled                            |
+| `SSQSNZMA ?`   | Quick Select names; how many it names is how many slots the model has |
+
+Receivers that do not answer `SSFUN ?` are asked over HTTP on port 80 instead:
+`/goform/formMainZone_MainZoneXml.xml?ZoneName=ZONE1` first, then
+`/goform/formMainZone_MainZoneXmlStatus.xml`. Both carry three parallel lists,
+`InputFuncList`, `RenameSource` and `SourceDelete`. An AVR-X1400H, for one,
+refuses both pages with 403.
 
 Queries append `?`; parameters under `PS` need a space first, as in `PSBAS ?`.
 The receiver drops commands sent back to back, so they are paced roughly 80 ms
@@ -107,11 +128,15 @@ to the tray. Quit it rather than hiding it if another controller needs the port.
 |------|------|
 | `src/AvrConnection.*` | Connection, reconnection, command pacing, line framing |
 | `src/AvrState.*`      | Parses the event stream into mirrored state |
-| `src/Discovery.*`     | SSDP search, confirmed by fetching `Deviceinfo.xml` |
-| `src/ZonePanel.*`     | Controls for one zone; used for both |
+| `src/Discovery.*`     | SSDP search, confirmed by `Deviceinfo.xml` or the UPnP description |
+| `src/WebCatalogue.*`  | Input list from the web page, for receivers without `SSFUN` |
+| `src/ZonePanel.*`     | Controls for one zone; used for all three |
 | `src/SoundPanel.*`    | Surround modes, tone, standing options |
 | `src/ConnectDialog.*` | Receiver picker |
 | `src/MainWindow.*`    | Tabs, menus, tray icon, settings |
+
+`tests/` holds the unit tests; the pages they parse are captures from real
+receivers (`tests/data/NOTICE`).
 
 `legacy/denon_control.py` is the single-window GTK 3 script this application
 replaced. It is kept for reference only and is not built or packaged.

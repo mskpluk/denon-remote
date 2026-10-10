@@ -50,6 +50,7 @@ private:
     QTabWidget *m_tabs;
     ZonePanel *m_mainZone;
     ZonePanel *m_zone2;
+    ZonePanel *m_zone3;
     SoundPanel *m_sound;
     QLabel *m_statusLabel;
     KStatusNotifierItem *m_tray = nullptr;
@@ -61,4 +62,7 @@ private:
     int m_wheelDelta = 0;         // scrolling not yet adding up to a notch
 
     QString m_host;
+    // Tab saved at the last close; zone 3 can only be shown again once the
+    // receiver has reported it.
+    QString m_wantedTab;
 };

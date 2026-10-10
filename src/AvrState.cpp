@@ -82,10 +82,55 @@ void AvrState::reset()
     m_sourceLabels.clear();
     m_availableSources.clear();
     m_deletedSources.clear();
+    m_catalogueReported = false;
+    m_webSources.clear();
+    m_haveWebSources = false;
     m_source.clear();
-    m_zone2Source.clear();
     m_soundMode.clear();
+    m_quickSelectNames.clear();
+    m_highestQuickSlot = 0;
+    // Options a model may not have stay hidden until the new receiver
+    // reports them.
+    m_drc.clear();
+    m_restorer.clear();
+    m_eco.clear();
+    for (int zone : {2, 3}) {
+        extra(zone) = ExtraZone();
+        emit zonePresenceChanged(zone);
+    }
     emit sourceCatalogChanged();
+    emit quickSelectNamesChanged();
+    emit drcChanged(QString());
+    emit restorerChanged(QString());
+    emit ecoChanged(QString());
+}
+
+int AvrState::quickSelectSlots() const
+{
+    // The window has room for five, the most any model offers.
+    return qBound(4, m_highestQuickSlot, 5);
+}
+
+void AvrState::setWebSources(const QVector<WebSource> &sources)
+{
+    m_webSources = sources;
+    m_haveWebSources = true;
+    if (!m_catalogueReported)
+        emit sourceCatalogChanged();
+}
+
+QMap<QString, QString> AvrState::effectiveLabels() const
+{
+    if (!usingWebSources())
+        return m_sourceLabels;
+    QMap<QString, QString> labels;
+    for (const WebSource &source : m_webSources) {
+        if (!source.label.isEmpty())
+            labels.insert(source.param, source.label);
+    }
+    // Whatever telnet said still wins.
+    labels.insert(m_sourceLabels);
+    return labels;
 }
 
 QVector<SourceEntry> AvrState::sources() const
@@ -93,34 +138,49 @@ QVector<SourceEntry> AvrState::sources() const
     QVector<SourceEntry> result;
     QSet<QString> emitted;
 
-    // Before the AVR has answered SSFUN/SSSOD there is nothing to filter
+    const bool web = usingWebSources();
+    QSet<QString> available = m_availableSources;
+    QSet<QString> deleted = m_deletedSources;
+    if (web) {
+        for (const WebSource &source : m_webSources) {
+            available.insert(source.param);
+            if (!source.enabled)
+                deleted.insert(source.param);
+        }
+    }
+    const QMap<QString, QString> labels = effectiveLabels();
+
+    // Before the AVR has said which inputs it has there is nothing to filter
     // against, so the full canonical list stands in.
-    const bool haveCatalogue = !m_availableSources.isEmpty();
+    const bool haveCatalogue = m_catalogueReported || web;
 
     for (const CanonicalSource &candidate : kCanonicalSources) {
         const QString param = QString::fromLatin1(candidate.param);
-        if (m_deletedSources.contains(param))
+        if (deleted.contains(param))
             continue;
-        if (haveCatalogue && !candidate.alwaysAvailable && !m_availableSources.contains(param))
+        // The web page lists Bluetooth like any other input where the model
+        // has one; only SSFUN leaves it out.
+        const bool listedAnyway = candidate.alwaysAvailable && !web;
+        if (haveCatalogue && !listedAnyway && !available.contains(param))
             continue;
-        result.append({param, m_sourceLabels.value(param, QString::fromLatin1(candidate.label))});
+        result.append({param, labels.value(param, QString::fromLatin1(candidate.label))});
         emitted.insert(param);
     }
 
     // Inputs this build has never heard of still belong in the list.
     QStringList extras;
-    for (const QString &param : m_availableSources) {
-        if (!emitted.contains(param) && !m_deletedSources.contains(param))
+    for (const QString &param : std::as_const(available)) {
+        if (!emitted.contains(param) && !deleted.contains(param))
             extras.append(param);
     }
     extras.sort();
     for (const QString &param : std::as_const(extras))
-        result.append({param, m_sourceLabels.value(param, param)});
+        result.append({param, labels.value(param, param)});
 
     return result;
 }
 
-QVector<SourceEntry> AvrState::zone2Sources() const
+QVector<SourceEntry> AvrState::zoneSources() const
 {
     QVector<SourceEntry> result;
     result.append({QStringLiteral("SOURCE"), tr("Follow main zone")});
@@ -134,8 +194,9 @@ QString AvrState::sourceLabel(const QString &param) const
         return QString();
     if (param == QLatin1String("SOURCE"))
         return tr("Follow main zone");
-    if (m_sourceLabels.contains(param))
-        return m_sourceLabels.value(param);
+    const QMap<QString, QString> labels = effectiveLabels();
+    if (labels.contains(param))
+        return labels.value(param);
     for (const CanonicalSource &candidate : kCanonicalSources) {
         if (param == QLatin1String(candidate.param))
             return QString::fromLatin1(candidate.label);
@@ -150,7 +211,11 @@ void AvrState::handleLine(const QString &line)
             return;
     }
     if (line.startsWith(QLatin1String("Z2"))) {
-        if (handleZone2(line))
+        if (handleZone(2, line))
+            return;
+    }
+    if (line.startsWith(QLatin1String("Z3"))) {
+        if (handleZone(3, line))
             return;
     }
     if (line.startsWith(QLatin1String("PS"))) {
@@ -204,6 +269,7 @@ void AvrState::handleLine(const QString &line)
     }
     if (line.startsWith(QLatin1String("MSQUICK"))) {
         const int index = line.mid(7).trimmed().toInt();
+        noteQuickSelectSlot(index);
         if (m_quickSelect != index) {
             m_quickSelect = index;
             emit quickSelectChanged(index);
@@ -239,12 +305,17 @@ void AvrState::handleLine(const QString &line)
     }
 }
 
-bool AvrState::handleZone2(const QString &line)
+bool AvrState::handleZone(int zone, const QString &line)
 {
     const QString body = line.mid(2);
+    ExtraZone &z = extra(zone);
+    if (!z.present) {
+        z.present = true;
+        emit zonePresenceChanged(zone);
+    }
 
-    // Zone 2 reuses the master prefixes for its own parameters; those are not
-    // modelled here and must not be mistaken for an input name.
+    // Zones 2 and 3 reuse the master prefixes for their own parameters; those
+    // are not modelled here and must not be mistaken for an input name.
     static const QStringList ignoredPrefixes = {
         QStringLiteral("PS"), QStringLiteral("CV"), QStringLiteral("CS"),
         QStringLiteral("SLP"), QStringLiteral("HPF"), QStringLiteral("QUICK"),
@@ -257,26 +328,26 @@ bool AvrState::handleZone2(const QString &line)
 
     if (body == QLatin1String("ON") || body == QLatin1String("OFF")) {
         const bool on = body == QLatin1String("ON");
-        if (m_zone2Power != on) {
-            m_zone2Power = on;
-            emit zone2PowerChanged(on);
+        if (z.power != on) {
+            z.power = on;
+            emit zonePowerChanged(zone);
         }
         return true;
     }
     if (body == QLatin1String("MUON") || body == QLatin1String("MUOFF")) {
         const bool muted = body == QLatin1String("MUON");
-        if (m_zone2Mute != muted) {
-            m_zone2Mute = muted;
-            emit zone2MuteChanged(muted);
+        if (z.mute != muted) {
+            z.mute = muted;
+            emit zoneMuteChanged(zone);
         }
         return true;
     }
 
     double value = 0.0;
     if (parseVolume(body, &value)) {
-        if (!qFuzzyCompare(m_zone2Volume, value)) {
-            m_zone2Volume = value;
-            emit zone2VolumeChanged(value);
+        if (!qFuzzyCompare(z.volume, value)) {
+            z.volume = value;
+            emit zoneVolumeChanged(zone);
         }
         return true;
     }
@@ -286,9 +357,9 @@ bool AvrState::handleZone2(const QString &line)
         return true;
     if (param != QLatin1String("SOURCE"))
         noteSource(param);
-    if (m_zone2Source != param) {
-        m_zone2Source = param;
-        emit zone2SourceChanged(param);
+    if (z.source != param) {
+        z.source = param;
+        emit zoneSourceChanged(zone);
     }
     return true;
 }
@@ -362,12 +433,36 @@ bool AvrState::handleParameter(const QString &line)
 
 bool AvrState::handleSetup(const QString &line)
 {
+    // "SSQSNZMAQS1 RMF FM" - the name given to a main-zone Quick Select slot.
+    // The slot counts even with no name: it is how a model with five shows it.
+    if (line.startsWith(QLatin1String("SSQSNZMA"))) {
+        const QString body = line.mid(8).trimmed();
+        if (body.size() < 3 || !body.startsWith(QLatin1String("QS")) || !body.at(2).isDigit())
+            return true;
+        const int slot = body.at(2).digitValue();
+        const QString name = body.mid(3).trimmed();
+        noteQuickSelectSlot(slot);
+        if (!name.isEmpty() && m_quickSelectNames.value(slot) != name) {
+            m_quickSelectNames.insert(slot, name);
+            emit quickSelectNamesChanged();
+        }
+        return true;
+    }
+
     // "SSFUNSAT/CBL CBL/SAT" - protocol name, then the label configured on the
     // receiver. "SSSODDVD USE" - whether that input is still enabled.
     const bool isFunctionName = line.startsWith(QLatin1String("SSFUN"));
     const bool isSourceDelete = line.startsWith(QLatin1String("SSSOD"));
     if (!isFunctionName && !isSourceDelete)
         return false;
+
+    // Any answer at all, even a bare END, makes telnet the source of the
+    // input list from now on.
+    if (!m_catalogueReported) {
+        m_catalogueReported = true;
+        if (m_haveWebSources)
+            emit sourceCatalogChanged();
+    }
 
     const QString body = line.mid(5).trimmed();
     if (body.isEmpty() || body == QLatin1String("END"))
@@ -395,6 +490,14 @@ bool AvrState::handleSetup(const QString &line)
     }
     emit sourceCatalogChanged();
     return true;
+}
+
+void AvrState::noteQuickSelectSlot(int slot)
+{
+    if (slot <= m_highestQuickSlot)
+        return;
+    m_highestQuickSlot = slot;
+    emit quickSelectNamesChanged();
 }
 
 void AvrState::noteSource(const QString &param)

@@ -87,12 +87,15 @@ SoundPanel::SoundPanel(AvrState *state, QWidget *parent)
     // Quick selects
     auto *quickGroup = new QGroupBox(tr("Quick Select"), this);
     auto *quickLayout = new QHBoxLayout(quickGroup);
-    for (int slot = 1; slot <= 4; ++slot) {
+    // Most models have four slots; the fifth button shows only once the
+    // receiver mentions a fifth slot.
+    for (int slot = 1; slot <= 5; ++slot) {
         auto *button = new QPushButton(QString::number(slot), quickGroup);
         connect(button, &QPushButton::clicked, this, [this, slot] {
             emit commandRequested(QStringLiteral("MSQUICK%1").arg(slot));
         });
         quickLayout->addWidget(button);
+        m_quickButtons.append(button);
     }
     quickLayout->addWidget(m_quickSelect, 1);
     layout->addWidget(quickGroup);
@@ -123,11 +126,14 @@ SoundPanel::SoundPanel(AvrState *state, QWidget *parent)
         m_sleep->addItem(tr("%1 min").arg(minutes), minutes);
     }
 
-    optionLayout->addWidget(new QLabel(tr("Dynamic range"), optionGroup), 0, 0);
+    m_drcLabel = new QLabel(tr("Dynamic range"), optionGroup);
+    m_restorerLabel = new QLabel(tr("Restorer"), optionGroup);
+    m_ecoLabel = new QLabel(tr("ECO mode"), optionGroup);
+    optionLayout->addWidget(m_drcLabel, 0, 0);
     optionLayout->addWidget(m_drc, 0, 1);
-    optionLayout->addWidget(new QLabel(tr("Restorer"), optionGroup), 1, 0);
+    optionLayout->addWidget(m_restorerLabel, 1, 0);
     optionLayout->addWidget(m_restorer, 1, 1);
-    optionLayout->addWidget(new QLabel(tr("ECO mode"), optionGroup), 2, 0);
+    optionLayout->addWidget(m_ecoLabel, 2, 0);
     optionLayout->addWidget(m_eco, 2, 1);
     optionLayout->addWidget(new QLabel(tr("Sleep timer"), optionGroup), 3, 0);
     optionLayout->addWidget(m_sleep, 3, 1);
@@ -157,6 +163,7 @@ SoundPanel::SoundPanel(AvrState *state, QWidget *parent)
 
     connect(m_state, &AvrState::soundModeChanged, this, &SoundPanel::refreshSoundMode);
     connect(m_state, &AvrState::quickSelectChanged, this, &SoundPanel::refreshQuickSelect);
+    connect(m_state, &AvrState::quickSelectNamesChanged, this, &SoundPanel::refreshQuickSelect);
     connect(m_state, &AvrState::toneChanged, this, &SoundPanel::refreshTone);
     connect(m_state, &AvrState::drcChanged, this, &SoundPanel::refreshOptions);
     connect(m_state, &AvrState::restorerChanged, this, &SoundPanel::refreshOptions);
@@ -211,8 +218,17 @@ void SoundPanel::refreshSoundMode()
 
 void SoundPanel::refreshQuickSelect()
 {
+    for (int i = 0; i < m_quickButtons.size(); ++i) {
+        const int slot = i + 1;
+        const QString name = m_state->quickSelectName(slot);
+        m_quickButtons[i]->setText(name.isEmpty() ? QString::number(slot) : name);
+        m_quickButtons[i]->setVisible(slot <= m_state->quickSelectSlots());
+    }
+
     const int slot = m_state->quickSelect();
-    m_quickSelect->setText(slot > 0 ? tr("active: %1").arg(slot) : QString());
+    const QString name = m_state->quickSelectName(slot);
+    m_quickSelect->setText(slot > 0 ? tr("active: %1").arg(name.isEmpty() ? QString::number(slot) : name)
+                                    : QString());
 }
 
 void SoundPanel::refreshTone()
@@ -251,15 +267,24 @@ void SoundPanel::refreshOptions()
 {
     m_updating = true;
 
-    const QPair<QComboBox *, QString> selections[] = {
-        {m_drc, m_state->drc()},
-        {m_restorer, m_state->restorer()},
-        {m_eco, m_state->eco()},
+    // These rows appear only once the receiver has reported a value: a model
+    // without the option ignores the query, and a control that does nothing
+    // would be worse than none.
+    const struct {
+        QComboBox *box;
+        QLabel *label;
+        QString value;
+    } selections[] = {
+        {m_drc, m_drcLabel, m_state->drc()},
+        {m_restorer, m_restorerLabel, m_state->restorer()},
+        {m_eco, m_ecoLabel, m_state->eco()},
     };
     for (const auto &selection : selections) {
-        const int index = selection.first->findData(selection.second);
+        selection.box->setVisible(!selection.value.isEmpty());
+        selection.label->setVisible(!selection.value.isEmpty());
+        const int index = selection.box->findData(selection.value);
         if (index >= 0)
-            selection.first->setCurrentIndex(index);
+            selection.box->setCurrentIndex(index);
     }
 
     const int minutes = m_state->sleepMinutes();

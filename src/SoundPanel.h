@@ -1,12 +1,14 @@
 #pragma once
 
 #include <QString>
+#include <QVector>
 #include <QWidget>
 
 class AvrState;
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QPushButton;
 class QSlider;
 
 // Sound mode, quick selects, tone controls and the standing options
@@ -47,8 +49,12 @@ private:
     QComboBox *m_drc;
     QComboBox *m_restorer;
     QComboBox *m_eco;
+    QLabel *m_drcLabel;
+    QLabel *m_restorerLabel;
+    QLabel *m_ecoLabel;
     QComboBox *m_sleep;
     QLabel *m_quickSelect;
+    QVector<QPushButton *> m_quickButtons;
 
     // Slot reused for a sleep value that is not one of the presets.
     int m_sleepCustomIndex = -1;

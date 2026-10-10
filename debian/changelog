@@ -1,3 +1,17 @@
+denon-remote (0.3.0-1) unstable; urgency=medium
+
+  * Older receivers: input list read from their web page, and found by
+    discovery.
+  * Quick Select buttons show the names set on the receiver; a fifth one
+    appears on models that have it.
+  * Zone 3 tab, on models that have a third zone.
+  * Dynamic range, Restorer and ECO are shown only if the receiver reports
+    them.
+  * Fix the input list shrinking to the current input on receivers that do
+    not report their inputs.
+
+ -- mskpluk <mskpluk@users.noreply.github.com>  Sat, 10 Oct 2026 15:13:08 +0100
+
 denon-remote (0.2.0-1) unstable; urgency=medium
 
   * Change the volume with the mouse wheel over the tray icon, half a decibel

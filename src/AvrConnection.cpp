@@ -73,7 +73,8 @@ void AvrConnection::refreshAll()
 {
     // SSFUN maps protocol source names to the labels configured on the AVR and
     // SSSOD says which of them are still enabled, so the source list is read
-    // from the device rather than hard-coded.
+    // from the device rather than hard-coded. SSQSNZMA names the Quick Select
+    // slots, and how many it names is how many the model has.
     const QStringList queries = {
         QStringLiteral("PW?"),          QStringLiteral("MV?"),
         QStringLiteral("MU?"),          QStringLiteral("SI?"),
@@ -83,7 +84,9 @@ void AvrConnection::refreshAll()
         QStringLiteral("PSDRC ?"),      QStringLiteral("PSRSTR ?"),
         QStringLiteral("ECO?"),         QStringLiteral("SLP?"),
         QStringLiteral("Z2?"),          QStringLiteral("Z2MU?"),
+        QStringLiteral("Z3?"),          QStringLiteral("Z3MU?"),
         QStringLiteral("SSFUN ?"),      QStringLiteral("SSSOD ?"),
+        QStringLiteral("SSQSNZMA ?"),
     };
     for (const QString &query : queries)
         send(query);

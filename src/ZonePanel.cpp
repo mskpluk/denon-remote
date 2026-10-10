@@ -70,7 +70,7 @@ ZonePanel::ZonePanel(Zone zone, AvrState *state, QWidget *parent)
     m_volumeSendTimer->setSingleShot(true);
     m_volumeSendTimer->setInterval(120);
 
-    const QString volumePrefix = isMain() ? QStringLiteral("MV") : QStringLiteral("Z2");
+    const QString volumePrefix = isMain() ? QStringLiteral("MV") : zonePrefix();
     connect(down, &QPushButton::clicked, this, [this, volumePrefix] {
         emit commandRequested(volumePrefix + QStringLiteral("DOWN"));
     });
@@ -90,10 +90,14 @@ ZonePanel::ZonePanel(Zone zone, AvrState *state, QWidget *parent)
         connect(m_state, &AvrState::muteChanged, this, &ZonePanel::refreshMute);
         connect(m_state, &AvrState::sourceChanged, this, &ZonePanel::refreshSource);
     } else {
-        connect(m_state, &AvrState::zone2PowerChanged, this, &ZonePanel::refreshPower);
-        connect(m_state, &AvrState::zone2VolumeChanged, this, &ZonePanel::refreshVolume);
-        connect(m_state, &AvrState::zone2MuteChanged, this, &ZonePanel::refreshMute);
-        connect(m_state, &AvrState::zone2SourceChanged, this, &ZonePanel::refreshSource);
+        connect(m_state, &AvrState::zonePowerChanged, this,
+                [this](int zone) { onZoneSignal(zone, &ZonePanel::refreshPower); });
+        connect(m_state, &AvrState::zoneVolumeChanged, this,
+                [this](int zone) { onZoneSignal(zone, &ZonePanel::refreshVolume); });
+        connect(m_state, &AvrState::zoneMuteChanged, this,
+                [this](int zone) { onZoneSignal(zone, &ZonePanel::refreshMute); });
+        connect(m_state, &AvrState::zoneSourceChanged, this,
+                [this](int zone) { onZoneSignal(zone, &ZonePanel::refreshSource); });
     }
     connect(m_state, &AvrState::sourceCatalogChanged, this, &ZonePanel::refreshCatalogue);
 
@@ -103,9 +107,15 @@ ZonePanel::ZonePanel(Zone zone, AvrState *state, QWidget *parent)
     refreshMute();
 }
 
+void ZonePanel::onZoneSignal(int zone, void (ZonePanel::*refresh)())
+{
+    if (zone == zoneNumber())
+        (this->*refresh)();
+}
+
 double ZonePanel::currentVolume() const
 {
-    return isMain() ? m_state->volume() : m_state->zone2Volume();
+    return isMain() ? m_state->volume() : m_state->zoneVolume(zoneNumber());
 }
 
 void ZonePanel::onPowerToggled(bool on)
@@ -115,14 +125,14 @@ void ZonePanel::onPowerToggled(bool on)
     if (isMain())
         emit commandRequested(on ? QStringLiteral("PWON") : QStringLiteral("PWSTANDBY"));
     else
-        emit commandRequested(on ? QStringLiteral("Z2ON") : QStringLiteral("Z2OFF"));
+        emit commandRequested(zonePrefix() + (on ? QStringLiteral("ON") : QStringLiteral("OFF")));
 }
 
 void ZonePanel::onMuteToggled(bool muted)
 {
     if (m_updating)
         return;
-    const QString prefix = isMain() ? QStringLiteral("MU") : QStringLiteral("Z2MU");
+    const QString prefix = isMain() ? QStringLiteral("MU") : zonePrefix() + QStringLiteral("MU");
     emit commandRequested(prefix + (muted ? QStringLiteral("ON") : QStringLiteral("OFF")));
 }
 
@@ -133,7 +143,7 @@ void ZonePanel::onSourceActivated(int index)
     const QString param = m_source->itemData(index).toString();
     if (param.isEmpty())
         return;
-    emit commandRequested((isMain() ? QStringLiteral("SI") : QStringLiteral("Z2")) + param);
+    emit commandRequested((isMain() ? QStringLiteral("SI") : zonePrefix()) + param);
 }
 
 void ZonePanel::onSliderChanged(int halfSteps)
@@ -147,13 +157,13 @@ void ZonePanel::onSliderChanged(int halfSteps)
 void ZonePanel::sendPendingVolume()
 {
     const QString argument = AvrState::volumeArgument(m_volume->value() / 2.0);
-    emit commandRequested((isMain() ? QStringLiteral("MV") : QStringLiteral("Z2")) + argument);
+    emit commandRequested((isMain() ? QStringLiteral("MV") : zonePrefix()) + argument);
 }
 
 void ZonePanel::refreshPower()
 {
     m_updating = true;
-    m_power->setChecked(isMain() ? m_state->power() : m_state->zone2Power());
+    m_power->setChecked(isMain() ? m_state->power() : m_state->zonePower(zoneNumber()));
     m_updating = false;
 }
 
@@ -173,13 +183,13 @@ void ZonePanel::refreshVolume()
 void ZonePanel::refreshMute()
 {
     m_updating = true;
-    m_mute->setChecked(isMain() ? m_state->mute() : m_state->zone2Mute());
+    m_mute->setChecked(isMain() ? m_state->mute() : m_state->zoneMute(zoneNumber()));
     m_updating = false;
 }
 
 void ZonePanel::refreshSource()
 {
-    const QString param = isMain() ? m_state->source() : m_state->zone2Source();
+    const QString param = isMain() ? m_state->source() : m_state->zoneSource(zoneNumber());
     m_updating = true;
     const int index = m_source->findData(param);
     if (index >= 0)
@@ -189,7 +199,7 @@ void ZonePanel::refreshSource()
 
 void ZonePanel::refreshCatalogue()
 {
-    const QVector<SourceEntry> entries = isMain() ? m_state->sources() : m_state->zone2Sources();
+    const QVector<SourceEntry> entries = isMain() ? m_state->sources() : m_state->zoneSources();
 
     m_updating = true;
     m_source->clear();

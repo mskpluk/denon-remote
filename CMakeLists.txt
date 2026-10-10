@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(denon-remote
-    VERSION 0.2.0
+    VERSION 0.3.0
     DESCRIPTION "Qt6 remote control for Denon/Marantz network receivers"
     LANGUAGES CXX)
 
@@ -13,14 +13,24 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Network)
 find_package(KF6StatusNotifierItem 6.0 REQUIRED)
 qt_standard_project_setup()
 
-qt_add_executable(denon-remote
-    src/main.cpp
+# Everything that talks to the receiver, without any GUI, so the tests can
+# use it too.
+qt_add_library(denon-remote-core STATIC
     src/AvrConnection.cpp
     src/AvrConnection.h
     src/AvrState.cpp
     src/AvrState.h
     src/Discovery.cpp
     src/Discovery.h
+    src/WebCatalogue.cpp
+    src/WebCatalogue.h
+)
+target_include_directories(denon-remote-core PUBLIC src)
+target_compile_definitions(denon-remote-core PRIVATE QT_NO_CAST_FROM_ASCII=0)
+target_link_libraries(denon-remote-core PUBLIC Qt6::Core Qt6::Network)
+
+qt_add_executable(denon-remote
+    src/main.cpp
     src/ConnectDialog.cpp
     src/ConnectDialog.h
     src/ZonePanel.cpp
@@ -41,7 +51,14 @@ target_compile_definitions(denon-remote PRIVATE
     QT_NO_CAST_FROM_ASCII=0
 )
 
-target_link_libraries(denon-remote PRIVATE Qt6::Widgets Qt6::Network KF6::StatusNotifierItem)
+target_link_libraries(denon-remote PRIVATE
+    denon-remote-core Qt6::Widgets Qt6::Network KF6::StatusNotifierItem)
+
+option(BUILD_TESTING "Build the unit tests" ON)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 include(GNUInstallDirs)
 

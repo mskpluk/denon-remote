@@ -12,14 +12,14 @@ class QTimer;
 
 // Power, volume, mute and input for one zone.
 //
-// Both zones expose the same controls and differ only in the command prefix,
-// so one widget covers the main zone and zone 2 alike.
+// All zones expose the same controls and differ only in the command prefix,
+// so one widget covers the main zone, zone 2 and zone 3 alike.
 class ZonePanel : public QWidget
 {
     Q_OBJECT
 
 public:
-    enum class Zone { Main, Zone2 };
+    enum class Zone { Main, Zone2, Zone3 };
 
     ZonePanel(Zone zone, AvrState *state, QWidget *parent = nullptr);
 
@@ -41,6 +41,10 @@ private slots:
 
 private:
     bool isMain() const { return m_zone == Zone::Main; }
+    int zoneNumber() const { return m_zone == Zone::Zone3 ? 3 : 2; }
+    // "Z2" or "Z3"; the main zone has a different prefix per command.
+    QString zonePrefix() const { return QStringLiteral("Z%1").arg(zoneNumber()); }
+    void onZoneSignal(int zone, void (ZonePanel::*refresh)());
     double currentVolume() const;
 
     Zone m_zone;

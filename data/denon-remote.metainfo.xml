@@ -17,7 +17,7 @@
     </p>
     <p>Covers:</p>
     <ul>
-      <li>Power, volume in decibels, mute and input selection for the main zone and zone 2</li>
+      <li>Power, volume in decibels, mute and input selection for the main zone, zone 2 and zone 3</li>
       <li>Surround modes and Quick Select presets</li>
       <li>Bass, treble and subwoofer trim, dynamic range, Restorer, ECO and the sleep timer</li>
       <li>Cursor control for the on-screen setup menu</li>
@@ -36,6 +36,7 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.0" date="2026-10-10"/>
     <release version="0.2.0" date="2026-09-26"/>
     <release version="0.1.0" date="2026-07-26"/>
   </releases>

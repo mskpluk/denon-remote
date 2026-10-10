@@ -3,6 +3,7 @@
 #include "AvrState.h"
 #include "ConnectDialog.h"
 #include "SoundPanel.h"
+#include "WebCatalogue.h"
 #include "ZonePanel.h"
 
 #include <KStatusNotifierItem>
@@ -48,20 +49,57 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_mainZone = new ZonePanel(ZonePanel::Zone::Main, m_state, this);
     m_zone2 = new ZonePanel(ZonePanel::Zone::Zone2, m_state, this);
+    m_zone3 = new ZonePanel(ZonePanel::Zone::Zone3, m_state, this);
     m_sound = new SoundPanel(m_state, this);
+    QWidget *remotePad = buildRemotePad();
+
+    // Tabs are remembered by name: zone 3 sits among them hidden on most
+    // models, so an index would not stay put.
+    m_mainZone->setObjectName(QStringLiteral("main"));
+    m_zone2->setObjectName(QStringLiteral("zone2"));
+    m_zone3->setObjectName(QStringLiteral("zone3"));
+    m_sound->setObjectName(QStringLiteral("sound"));
+    remotePad->setObjectName(QStringLiteral("menu"));
 
     m_tabs->addTab(m_mainZone, tr("Main zone"));
     m_tabs->addTab(m_zone2, tr("Zone 2"));
+    m_tabs->addTab(m_zone3, tr("Zone 3"));
     m_tabs->addTab(m_sound, tr("Sound"));
-    m_tabs->addTab(buildRemotePad(), tr("Menu"));
-    m_tabs->setCurrentIndex(QSettings().value(QStringLiteral("window/tab"), 0).toInt());
+    m_tabs->addTab(remotePad, tr("Menu"));
+    m_tabs->setTabVisible(m_tabs->indexOf(m_zone3), false);
+
+    QSettings tabSettings;
+    m_wantedTab = tabSettings.value(QStringLiteral("window/tabName")).toString();
+    if (m_wantedTab.isEmpty()) {
+        // Saved by 0.2.0 and earlier as a position among these four.
+        static const char *const oldOrder[] = {"main", "zone2", "sound", "menu"};
+        const int old = tabSettings.value(QStringLiteral("window/tab"), 0).toInt();
+        m_wantedTab = QString::fromLatin1(oldOrder[qBound(0, old, 3)]);
+    }
+    if (QWidget *tab = m_tabs->findChild<QWidget *>(m_wantedTab); tab && tab != m_zone3)
+        m_tabs->setCurrentWidget(tab);
     setCentralWidget(m_tabs);
+
+    connect(m_state, &AvrState::zonePresenceChanged, this, [this](int zone) {
+        if (zone != 3)
+            return;
+        const bool present = m_state->zonePresent(3);
+        m_tabs->setTabVisible(m_tabs->indexOf(m_zone3), present);
+        if (present && m_wantedTab == m_zone3->objectName())
+            m_tabs->setCurrentWidget(m_zone3);
+    });
+    connect(m_tabs, &QTabWidget::currentChanged, this, [this] {
+        if (QWidget *tab = m_tabs->currentWidget())
+            m_wantedTab = tab->objectName();
+    });
 
     statusBar()->addWidget(m_statusLabel);
 
     // Everything the AVR says feeds the mirrored state; everything the panels
     // ask for goes back out on the same link.
     connect(m_connection, &AvrConnection::lineReceived, m_state, &AvrState::handleLine);
+    // Fills in the input list for receivers that do not answer SSFUN.
+    new WebCatalogue(m_connection, m_state, this);
     connect(m_connection, &AvrConnection::statusChanged, this, &MainWindow::onStatusChanged);
     connect(m_connection, &AvrConnection::errorOccurred, this, &MainWindow::onConnectionError);
     connect(m_state, &AvrState::powerChanged, this, &MainWindow::updateTrayTooltip);
@@ -74,7 +112,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_wheelTimer->setInterval(150);
     connect(m_wheelTimer, &QTimer::timeout, this, &MainWindow::flushWheelVolume);
 
-    for (ZonePanel *panel : {m_mainZone, m_zone2})
+    for (ZonePanel *panel : {m_mainZone, m_zone2, m_zone3})
         connect(panel, &ZonePanel::commandRequested, m_connection, &AvrConnection::send);
     connect(m_sound, &SoundPanel::commandRequested, m_connection, &AvrConnection::send);
 
@@ -339,7 +377,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     QSettings settings;
     settings.setValue(QStringLiteral("window/geometry"), saveGeometry());
-    settings.setValue(QStringLiteral("window/tab"), m_tabs->currentIndex());
+    settings.setValue(QStringLiteral("window/tabName"), m_wantedTab);
     if (m_minimiseToTray)
         settings.setValue(QStringLiteral("window/minimiseToTray"), m_minimiseToTray->isChecked());
 
