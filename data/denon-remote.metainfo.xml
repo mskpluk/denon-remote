@@ -10,10 +10,8 @@
   <summary>Control a Denon or Marantz network receiver</summary>
   <description>
     <p>
-      A desktop remote control for Denon and Marantz network receivers. It holds a
-      single connection to the receiver, which carries both the commands it sends and
-      the notifications the receiver emits on its own, so the window stays in step with
-      changes made from the front panel, the infrared remote or the HEOS app.
+      A desktop remote control for Denon and Marantz network receivers. The window
+      follows changes made on the front panel, the infrared remote or the HEOS app.
     </p>
     <p>Covers:</p>
     <ul>

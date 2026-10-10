@@ -23,7 +23,9 @@ instead.
 - Bass, treble and subwoofer trim, dynamic range, Restorer, ECO, sleep timer
 - Cursor control for the on-screen setup menu
 - Receiver discovery on the local network, or a typed address
-- Tray icon for power and mute; the mouse wheel over it changes the volume
+- Tray icon for power and mute; the mouse wheel over it changes the volume by
+  half a decibel per notch
+- Optional closing to the tray
 - Automatic reconnection
 
 Controls for things a model doesn't have, such as zone 3 or a fifth Quick
