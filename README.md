@@ -19,25 +19,19 @@ instead.
 ## Features
 
 - Main zone, zone 2 and zone 3: power, volume in decibels, mute, input
-  selection; the zone 3 tab appears only on models that report one
-- Surround modes and the Quick Select presets, under the names set on the
-  receiver; a fifth button appears on models that report a fifth slot
-- Bass, treble and subwoofer trim, dynamic range compression, Restorer,
-  ECO mode, sleep timer; dynamic range, Restorer and ECO show up once the
-  receiver reports them
+- Surround modes, Quick Select presets under their names on the receiver
+- Bass, treble and subwoofer trim, dynamic range, Restorer, ECO, sleep timer
 - Cursor control for the on-screen setup menu
-- Receiver discovery on the local network, older models included, with
-  manual entry as a fallback
-- Tray icon for power, standby and mute; the mouse wheel over it changes the
-  volume, half a decibel per notch as on the front panel knob; optional
-  close-to-tray
-- Automatic reconnection with a capped backoff
+- Receiver discovery on the local network, or a typed address
+- Tray icon for power and mute; the mouse wheel over it changes the volume
+- Automatic reconnection
+
+Controls for things a model doesn't have, such as zone 3 or a fifth Quick
+Select slot, are not shown.
 
 ## Building
 
-Needs Qt 6.4 or newer and KStatusNotifierItem from KDE Frameworks 6. The tray
-icon uses the latter because Qt's own StatusNotifierItem implementation ignores
-the mouse wheel.
+Needs Qt 6.4 or newer and KStatusNotifierItem from KDE Frameworks 6.
 
 ```sh
 sudo apt install build-essential cmake qt6-base-dev qt6-svg-plugins \
@@ -48,9 +42,6 @@ ctest --test-dir build
 ./build/denon-remote
 ```
 
-The tests run against pages captured from real receivers (see
-`tests/data/NOTICE`) and against stand-in receivers on the loopback interface.
-
 ## Debian package
 
 ```sh
@@ -59,12 +50,8 @@ dpkg-buildpackage -us -uc -b
 sudo apt install ../denon-remote_*_amd64.deb
 ```
 
-Release packages are built with `scripts/build-deb-trixie.sh` instead, inside a
-rootless Podman container running Debian 13.0. `dpkg-shlibdeps` records the
-library versions the build linked against as the minimum in `Depends:`, so a
-build on a newer system would ask for libraries no released Debian 13 has. The
-script then checks that the package installs on current Debian 13 and on
-Ubuntu 26.04 LTS.
+Release packages are built with `scripts/build-deb-trixie.sh` in a Debian 13.0
+container, so they install on every Debian 13 release and on Ubuntu 26.04.
 
 ## Protocol notes
 
@@ -85,7 +72,7 @@ The parts this application relies on:
 | `Z2ON`, `Z240`, `Z2MUON`, `Z2SOURCE` | Zone 2 power, volume, mute, input; `Z3…` likewise for zone 3 |
 | `SSFUN ?`      | Input labels configured on the receiver             |
 | `SSSOD ?`      | Which inputs are enabled                            |
-| `SSQSNZMA ?`   | Quick Select names; how many it names is how many slots the model has |
+| `SSQSNZMA ?`   | Quick Select names (and how many slots)             |
 
 Receivers that do not answer `SSFUN ?` are asked over HTTP on port 80 instead:
 `/goform/formMainZone_MainZoneXml.xml?ZoneName=ZONE1` first, then
@@ -97,24 +84,17 @@ Queries append `?`; parameters under `PS` need a space first, as in `PSBAS ?`.
 The receiver drops commands sent back to back, so they are paced roughly 80 ms
 apart.
 
-A command the receiver will not accept produces no reply at all — no error, no
-echo. Bass and treble behave this way whenever tone control is off, and so does
-subwoofer trim whenever `PSSWL` reports `OFF`, which is a setting in the
-receiver's own setup menu and cannot be changed remotely. Those sliders are
-therefore disabled until the receiver says it will listen, rather than left
-looking usable while doing nothing. The same rule is worth remembering when
-adding controls: verify against the hardware that a command is echoed back,
-because silence is what failure looks like.
+A command the receiver won't accept gets no reply at all. Bass and treble are
+ignored while tone control is off, subwoofer trim while `PSSWL` reports `OFF`,
+so those controls stay disabled until then. When adding a control, check on the
+hardware that the command is echoed back.
 
-The application never sends anything the user did not ask for, apart from the
-queries that read the state right after connecting. A periodic query could
-count as activity and keep the receiver from dropping into auto-standby, so a
-dead link is detected with TCP keepalive instead (about 90 seconds), which the
-receiver's network stack answers without the control protocol ever seeing it.
+Apart from the state queries after connecting, nothing is sent unasked: a
+periodic query would keep the receiver out of auto-standby. A dead link is
+detected with TCP keepalive.
 
-The receiver accepts a limited number of control connections, and this
-application holds one for as long as it runs — including while it sits closed
-to the tray. Quit it rather than hiding it if another controller needs the port.
+The application holds its control connection while it runs, also when closed
+to the tray. Quit it if another controller needs the port.
 
 ## Layout
 
